@@ -2,6 +2,10 @@
 
 Step-by-step creation of tails on moving particles (WebGPU / TSL)
 
+
+https://github.com/user-attachments/assets/45b17316-435f-42ea-a757-9b3ea7c33249
+
+
 [Article on Codrops](https://tympanus.net/codrops/?p=88757)
 
 
