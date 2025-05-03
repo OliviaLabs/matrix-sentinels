@@ -6,7 +6,7 @@ import State from "@experience/State.js";
 
 import {
     positionLocal, time, vec3, vec4, uniform, color, If, instanceIndex,
-    uint,  Fn, float, smoothstep, instancedArray, deltaTime, hash
+    uint, Fn, float, smoothstep, instancedArray, deltaTime, hash
 } from 'three/tsl'
 
 import { simplexNoise4d } from "@experience/TSL/simplexNoise4d.js"
@@ -27,9 +27,9 @@ export default class ParticlesTrails extends Model {
 
     isMobile = this.experience.isMobile
 
-    tails_count = 7 //  n-1 point tails
+    tails_count = 10 //  n-1 point tails
     particles_count = this.tails_count * 200 // need % tails_count
-    story_count = 5 // story for 1 position
+    story_count = 2 // story for 1 position
     story_snake = this.tails_count * this.story_count
     full_story_length = ( this.particles_count / this.tails_count ) * this.story_snake
 
@@ -37,7 +37,7 @@ export default class ParticlesTrails extends Model {
 
 
     uniforms = {
-        color: uniform( new THREE.Color( 0xffffff ).setRGB( 1, 1, 1 ) ),
+        color: uniform( color( 0x00ff00 )  ),
         size: uniform( 0.489 ),
 
         uFlowFieldInfluence: uniform( 0.5 ),
@@ -191,7 +191,7 @@ export default class ParticlesTrails extends Model {
             return positionLocal.mul( finalSize ).add( position )
         } )()
 
-        particlesMaterial.emissiveNode = color(0x00ff00)
+        particlesMaterial.emissiveNode = this.uniforms.color
 
         const sphereGeometry = new THREE.SphereGeometry( 0.1, 32, 32 );
 
@@ -202,6 +202,11 @@ export default class ParticlesTrails extends Model {
 
         this.scene.add( this.particlesMesh )
         this.scene.add( this.container )
+
+
+        // setInterval( async () => {
+        //
+        // }, 1/60 );
 
     }
 
@@ -234,6 +239,11 @@ export default class ParticlesTrails extends Model {
             expanded: true
         } )
 
+        commonFolder.addBinding( this.uniforms.color, 'value', {
+            label: 'Color',
+            color: { type: 'float' }
+        })
+
         commonFolder.addBinding( this.uniforms.uFlowFieldInfluence, 'value', {
             min: 0, max: 1, step: 0.001, label: 'uFlowFieldInfluence'
         } )
@@ -249,9 +259,8 @@ export default class ParticlesTrails extends Model {
     }
 
     async update( deltaTime ) {
-
         // Compute update
-        if( this.initialCompute) {
+        if ( this.initialCompute ) {
             await this.renderer.computeAsync( this.computePositionStory )
             await this.renderer.computeAsync( this.computeUpdate )
         }

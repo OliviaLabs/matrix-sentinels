@@ -17,7 +17,6 @@
     "min-signal": "^1.0.2",
     "normalize-wheel": "^1.0.1",
     "patch-package": "^8.0.0",
-    "postprocessing": "^6.36.7",
     "simplex-noise": "^4.0.3",
     "stats.js": "^0.17.0",
     "three": "^0.176.0",
