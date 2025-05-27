@@ -27,37 +27,75 @@ export default class ParticlesTrails extends Model {
 
     isMobile = this.experience.isMobile
 
-    tails_count = 10 //  n-1 point tails
-    particles_count = this.tails_count * 200 // need % tails_count
+    // tails_count = 5 //  n-1 point tails // Will be set by config
+    // particles_count = this.tails_count * 100 // need % tails_count // Will be set by config
     story_count = 2 // story for 1 position
-    story_snake = this.tails_count * this.story_count
-    full_story_length = ( this.particles_count / this.tails_count ) * this.story_snake
+    // story_snake = this.tails_count * this.story_count // Will be set by config
+    // full_story_length = ( this.particles_count / this.tails_count ) * this.story_snake // Will be set by config
 
     initialCompute = false
 
-
-    uniforms = {
-        color: uniform( color( 1.0, 0.39, 0.0 )  ),
+    // Default uniforms, can be overridden by config
+    defaultUniforms = {
+        color: uniform( new THREE.Color(1.0, 0.39, 0.0) ), // Default orange
         size: uniform( 0.489 ),
-
         uFlowFieldInfluence: uniform( 0.5 ),
         uFlowFieldStrength: uniform( 3.043 ),
         uFlowFieldFrequency: uniform( 0.207 ),
-
-        // Boids parameters
         uNeighborRadius: uniform( 1.5 ),
         uSeparationDistance: uniform( 0.5 ),
         uCohesionFactor: uniform( 0.02 ),
         uAlignmentFactor: uniform( 0.05 ),
         uSeparationFactor: uniform( 0.5 ),
     }
+    uniforms = {} // Will be populated based on defaults and config
 
     varyings = {}
 
-    constructor( parameters = {} ) {
+    constructor( config = {} ) { // Expect a config object
         super()
 
-        this.world = parameters.world
+        this.swarmId = config.swarmId || 'defaultSwarm'; // Store swarmId
+        this.config = config;
+
+        // Initialize uniforms: start with defaults, then override with config.initialUniforms
+        this.uniforms = { ...this.defaultUniforms }; // Shallow copy defaults
+        if (config.initialUniforms) {
+            for (const key in config.initialUniforms) {
+                if (this.uniforms[key] !== undefined) {
+                    if (key === 'color' && config.initialUniforms.color instanceof THREE.Color) {
+                         this.uniforms.color = uniform(config.initialUniforms.color.clone());
+                    } else {
+                         this.uniforms[key] = uniform(config.initialUniforms[key]);
+                    }
+                } else {
+                     // If it's a new uniform not in defaults, create it
+                    if (key === 'color' && config.initialUniforms.color instanceof THREE.Color) {
+                        this.uniforms.color = uniform(config.initialUniforms.color.clone());
+                    } else {
+                        this.uniforms[key] = uniform(config.initialUniforms[key]);
+                    }
+                }
+            }
+        }
+         // Ensure 'color' uniform exists if not provided, using the config color or default
+        if (!this.uniforms.color && config.color instanceof THREE.Color) {
+            this.uniforms.color = uniform(config.color.clone());
+        } else if (!this.uniforms.color) {
+            this.uniforms.color = uniform(new THREE.Color(1.0, 0.39, 0.0)); // Fallback default
+        }
+
+
+        // Set counts based on config or defaults
+        this.tails_count = config.tailsCount || 5;
+        this.particles_per_tail = config.particlesPerTail || 100;
+        this.particles_count = this.tails_count * this.particles_per_tail;
+
+        this.story_snake = this.tails_count * this.story_count
+        this.full_story_length = ( this.particles_count / this.tails_count ) * this.story_snake
+
+
+        this.world = config.world
         this.camera = this.world.camera.instance
         this.cameraClass = this.world.camera
         this.scene = this.world.scene
@@ -315,30 +353,49 @@ export default class ParticlesTrails extends Model {
     }
 
     setAIBehaviorParameters(newParams) {
-        if (!newParams) return;
-
-        console.log("Applying AI parameters to worms:", newParams);
-        this.currentAIParameters = { ...this.currentAIParameters, ...newParams }; // Merge new params
-
+        console.log(`[${this.swarmId}] Applying AI parameters to worms:`, newParams);
+        let changed = false;
         for (const key in newParams) {
-            if (this.uniforms[key]) {
-                if (key === 'color' && typeof newParams.color === 'object') {
-                    if (newParams.color.hasOwnProperty('r') && newParams.color.hasOwnProperty('g') && newParams.color.hasOwnProperty('b')) {
-                        this.uniforms.color.value.set(newParams.color.r, newParams.color.g, newParams.color.b);
+            if (key === 'thought_process' || key === 'strategic_focus' || key === 'outgoing_message') { // Explicitly ignore non-uniform keys
+                continue;
+            }
+            // Check against the class's own 'uniforms' object
+            if (this.uniforms[key] !== undefined) {
+                if (key === 'color' && typeof newParams[key] === 'object') {
+                    // Ensure newParams[key] has r, g, b
+                    if (newParams[key].hasOwnProperty('r') && newParams[key].hasOwnProperty('g') && newParams[key].hasOwnProperty('b')) {
+                        if (this.uniforms.color.value.r !== newParams[key].r ||
+                            this.uniforms.color.value.g !== newParams[key].g ||
+                            this.uniforms.color.value.b !== newParams[key].b) {
+                            this.uniforms.color.value.set(newParams[key].r, newParams[key].g, newParams[key].b);
+                            // Assuming renderMaterial also needs to be updated if it exists and has uColor
+                            if (this.renderMaterial && this.renderMaterial.uniforms.uColor) {
+                                this.renderMaterial.uniforms.uColor.value.set(newParams[key].r, newParams[key].g, newParams[key].b);
+                            }
+                            changed = true;
+                        }
+                    } else {
+                        console.warn(`Received color object for '${key}' without r, g, or b properties:`, newParams[key]);
                     }
-                } else if (typeof this.uniforms[key].value === 'number' && typeof newParams[key] === 'number') {
+                } else if (this.uniforms[key].value !== newParams[key]) { // For simple value types
                     this.uniforms[key].value = newParams[key];
-                } else if (typeof this.uniforms[key].value === 'object' && typeof newParams[key] === 'object') {
-                    // For vec2, vec3 etc. - shallow copy for now. Deeper copy if needed.
-                    // this.uniforms[key].value.copy(newParams[key]); // If it's a THREE.Vector or Color object
+                    // Assuming renderMaterial also needs to be updated for size if it exists and has uSize
+                    if (key === 'size' && this.renderMaterial && this.renderMaterial.uniforms.uSize) {
+                        this.renderMaterial.uniforms.uSize.value = newParams[key];
+                    }
+                    changed = true;
                 }
             } else {
-                console.warn(`AI tried to set unknown uniform: ${key}`);
+                console.warn(`[${this.swarmId}] AI tried to set unknown uniform: ${key}`);
             }
         }
-        // Emit an event so other UI elements (like the display panel) can update
-        if (this.experience) { // Ensure experience is available (it should be)
-            this.experience.trigger('aiParametersUpdated', [this.currentAIParameters]);
+
+        if (changed) {
+            console.log(`[${this.swarmId}] AI parameters applied, triggering update.`);
+            this.trigger('aiParametersUpdated', [{ ...newParams, swarmId: this.swarmId }]);
+        } else {
+            console.log(`[${this.swarmId}] AI parameters received, but no effective change to current worm uniforms.`);
+            this.trigger('aiParametersUpdated', [{ ...newParams, swarmId: this.swarmId }]);
         }
     }
 

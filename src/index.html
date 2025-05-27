@@ -28,8 +28,23 @@
 
 <div id="debug-panel"></div>
 <div id="ai-thinking-panel">
-    <h3>Worm AI Parameters:</h3>
-    <pre id="ai-params-display">Waiting for AI...</pre>
+    <div class="swarm-ai-display" id="green-swarm-ai-display">
+        <h3>Green Swarm AI:</h3>
+        <div class="ai-narrative-display" style="margin-bottom: 10px; font-style: italic;">Waiting for Green AI...</div>
+        <div class="ai-strategy-display" style="margin-bottom: 10px; font-weight: bold;">Strategy: ...</div>
+        <div class="ai-incoming-message-display" style="margin-bottom: 5px; padding: 5px; border: 1px dashed #555;"></div>
+        <div class="ai-outgoing-message-display" style="margin-bottom: 10px; padding: 5px; border: 1px dashed #777;"></div>
+        <pre class="ai-params-display">...</pre>
+    </div>
+    <hr style="margin: 15px 0;">
+    <div class="swarm-ai-display" id="orange-swarm-ai-display">
+        <h3>Orange Swarm AI:</h3>
+        <div class="ai-narrative-display" style="margin-bottom: 10px; font-style: italic;">Waiting for Orange AI...</div>
+        <div class="ai-strategy-display" style="margin-bottom: 10px; font-weight: bold;">Strategy: ...</div>
+        <div class="ai-incoming-message-display" style="margin-bottom: 5px; padding: 5px; border: 1px dashed #555;"></div>
+        <div class="ai-outgoing-message-display" style="margin-bottom: 10px; padding: 5px; border: 1px dashed #777;"></div>
+        <pre class="ai-params-display">...</pre>
+    </div>
 </div>
 
 <canvas class="webgl"></canvas>

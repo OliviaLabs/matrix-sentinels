@@ -31,7 +31,27 @@ export default class MainWorld extends EventEmitter{
 
         this._setDebug()
 
-        this.particlesTrails = new ParticlesTrails( { world: this } )
+        // this.particlesTrails = new ParticlesTrails( { world: this } )
+        this.greenSwarm = new ParticlesTrails({
+            swarmId: 'green',
+            world: this,
+            tailsCount: 5,
+            particlesPerTail: 100,
+            initialUniforms: {
+                color: new THREE.Color(0.1, 0.7, 0.2), // Greenish
+                // You can add other initial uniform overrides here if needed
+            }
+        });
+
+        this.orangeSwarm = new ParticlesTrails({
+            swarmId: 'orange',
+            world: this,
+            tailsCount: 5,
+            particlesPerTail: 100,
+            initialUniforms: {
+                color: new THREE.Color(1.0, 0.4, 0.0), // Orange
+            }
+        });
 
         this.environment = new Environment( { world: this } )
         //this.debugHelpers = new DebugHelpers( { world: this } )
@@ -40,15 +60,21 @@ export default class MainWorld extends EventEmitter{
     }
 
     animationPipeline() {
-        this.particlesTrails?.animationPipeline()
+        // this.particlesTrails?.animationPipeline()
+        this.greenSwarm?.animationPipeline();
+        this.orangeSwarm?.animationPipeline();
     }
 
     postInit() {
-        this.particlesTrails?.postInit()
+        // this.particlesTrails?.postInit()
+        this.greenSwarm?.postInit();
+        this.orangeSwarm?.postInit();
     }
 
     resize() {
-        this.particlesTrails?.resize()
+        // this.particlesTrails?.resize()
+        this.greenSwarm?.resize();
+        this.orangeSwarm?.resize();
 
         this.camera?.resize()
     }
@@ -57,7 +83,9 @@ export default class MainWorld extends EventEmitter{
         if ( !this.enabled )
             return
 
-        this.particlesTrails?.update( deltaTime )
+        // this.particlesTrails?.update( deltaTime )
+        this.greenSwarm?.update( deltaTime );
+        this.orangeSwarm?.update( deltaTime );
 
         this.camera?.update()
     }

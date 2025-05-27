@@ -1,11 +1,12 @@
 import * as THREE from 'three/webgpu'
 import Experience from '@experience/Experience.js'
 import Resources from "@experience/Utils/Resources.js";
+import EventEmitter from '@experience/Utils/EventEmitter.js';
 
-export default class Model {
+export default class Model extends EventEmitter {
 
     constructor() {
-
+        super();
     }
 
     // loadModel( inputElement ) {
