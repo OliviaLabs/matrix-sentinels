@@ -29,7 +29,7 @@ export default class DebugHelpers {
 
     setupDebugFeatures() {
         this.addGlobalAxes()
-        this.addViewHelper()
+        // this.addViewHelper() // Comment out to remove Gizmo
         //this.addGrid()
     }
 
@@ -64,7 +64,7 @@ export default class DebugHelpers {
     }
 
     update( deltaTime ) {
-        this.gizmo?.update();
+        // this.gizmo?.update(); // Comment out Gizmo update
     }
 
 }

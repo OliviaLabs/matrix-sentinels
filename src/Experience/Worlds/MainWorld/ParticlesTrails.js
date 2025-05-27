@@ -37,12 +37,19 @@ export default class ParticlesTrails extends Model {
 
 
     uniforms = {
-        color: uniform( color( 0x00ff00 )  ),
+        color: uniform( color( 1.0, 0.39, 0.0 )  ),
         size: uniform( 0.489 ),
 
         uFlowFieldInfluence: uniform( 0.5 ),
         uFlowFieldStrength: uniform( 3.043 ),
         uFlowFieldFrequency: uniform( 0.207 ),
+
+        // Boids parameters
+        uNeighborRadius: uniform( 1.5 ),
+        uSeparationDistance: uniform( 0.5 ),
+        uCohesionFactor: uniform( 0.02 ),
+        uAlignmentFactor: uniform( 0.05 ),
+        uSeparationFactor: uniform( 0.5 ),
     }
 
     varyings = {}
@@ -129,39 +136,63 @@ export default class ParticlesTrails extends Model {
             const uFlowFieldStrength = this.uniforms.uFlowFieldStrength
             const uFlowFieldFrequency = this.uniforms.uFlowFieldFrequency
 
+            // Boids Uniforms
+            const uNeighborRadius = this.uniforms.uNeighborRadius;
+            const uSeparationDistance = this.uniforms.uSeparationDistance;
+            const uCohesionFactor = this.uniforms.uCohesionFactor;
+            const uAlignmentFactor = this.uniforms.uAlignmentFactor;
+            const uSeparationFactor = this.uniforms.uSeparationFactor;
 
-            If( life.greaterThanEqual( 1 ), () => {
-                life.assign( life.mod( 1 ) )
-                position.assign( positionInit )
+            // Particle's current position and life
+            const currentPosition = positionBuffer.element(instanceIndex).toVar();
+            const currentLife = lifeBuffer.element(instanceIndex).toVar();
 
-            } ).Else( () => {
-                life.addAssign( deltaTime.mul( 0.2 ) )
-            } )
+            // Life update (reset happens here if boundaries were kept)
+            If(currentLife.greaterThanEqual(1.0), () => {
+                currentLife.assign(currentLife.mod(1.0));
+                // position.assign( positionInitBuffer.element(instanceIndex) ); // Boundary constraint removed
+            }).Else(() => {
+                currentLife.addAssign(deltaTime.mul(0.2));
+            });
 
-            // Strength
-            const strength = simplexNoise4d( vec4( position.mul( 0.2 ), _time.add( 1 ) ) ).toVar()
-            const influence = uFlowFieldInfluence.sub( 0.5 ).mul( -2.0 ).toVar()
-            strength.assign( smoothstep( influence, 1.0, strength ) )
+            // Flow field calculation (base movement)
+            const flowFieldForce = vec3(
+                simplexNoise4d(vec4(currentPosition.mul(uFlowFieldFrequency).add(0.0), _time)),
+                simplexNoise4d(vec4(currentPosition.mul(uFlowFieldFrequency).add(1.0), _time)),
+                simplexNoise4d(vec4(currentPosition.mul(uFlowFieldFrequency).add(2.0), _time))
+            ).normalize().mul(uFlowFieldStrength).toVar();
 
-            // Flow field
-            const flowField = vec3(
-                simplexNoise4d( vec4( position.mul( uFlowFieldFrequency ).add( 0 ), _time ) ),
-                simplexNoise4d( vec4( position.mul( uFlowFieldFrequency ).add( 1.0 ), _time ) ),
-                simplexNoise4d( vec4( position.mul( uFlowFieldFrequency ).add( 2.0 ), _time ) )
-            ).normalize()
+            const cycleStep = instanceIndex.mod(uint(this.tails_count));
+            const finalForce = flowFieldForce.toVar(); // Start with flow field force
 
-            const cycleStep = instanceIndex.mod( uint( this.tails_count ) )
+            // --- REVERTED TEST ---
+            /*
+            If(cycleStep.equal(0), () => {
+                finalForce.assign(vec3(0.0, 0.1, 0.0)); // Constant upward force
+            });
+            */
+            // --- END REVERTED TEST ---
+            
+            If(cycleStep.equal(0), () => { // Head particles apply boids logic
+                const separationForce = vec3(0.0).toVar();
+                const alignmentForce = vec3(0.0).toVar();
+                const cohesionForce = vec3(0.0).toVar();
 
-            If( cycleStep.equal( 0 ), () => { // Head
-                const newPos = position.add( flowField.mul( deltaTime ).mul( uFlowFieldStrength ) /* * strength */ )
-                position.assign( newPos )
-            } ).Else( () => { // Tail
-                const prevTail = positionStoryBuffer.element( instanceIndex.mul( this.story_count ) )
-                position.assign( prevTail )
-            } )
+                // Combine boids forces
+                const boidTotalForce = separationForce.add(alignmentForce).add(cohesionForce);
+                finalForce.addAssign(boidTotalForce); // Add boid forces to the flow field force
+            });
 
+            // Update position for head or tail
+            If(cycleStep.equal(0), () => { // Head
+                const newPos = currentPosition.add(finalForce.mul(deltaTime));
+                positionBuffer.element(instanceIndex).assign(newPos);
+            }).Else(() => { // Tail
+                const prevTail = positionStoryBuffer.element(instanceIndex.mul(this.story_count));
+                positionBuffer.element(instanceIndex).assign(prevTail);
+            });
 
-        } )().compute( this.particles_count );
+        } )().compute(this.particles_count);
 
         const computePositionStory = this.computePositionStory = Fn( () => {
             const positionStory = positionStoryBuffer.element( instanceIndex )
@@ -256,6 +287,59 @@ export default class ParticlesTrails extends Model {
             min: 0, max: 1, step: 0.001, label: 'uFlowFieldFrequency'
         } )
 
+        // Boids Debug
+        const boidsFolder = particlesFolder.addFolder( {
+            title: '🐦 Boids',
+            expanded: true
+        } )
+
+        boidsFolder.addBinding( this.uniforms.uNeighborRadius, 'value', {
+            min: 0, max: 10, step: 0.1, label: 'Neighbor Radius'
+        } )
+
+        boidsFolder.addBinding( this.uniforms.uSeparationDistance, 'value', {
+            min: 0, max: 5, step: 0.01, label: 'Separation Distance'
+        } )
+
+        boidsFolder.addBinding( this.uniforms.uCohesionFactor, 'value', {
+            min: 0, max: 1, step: 0.001, label: 'Cohesion Factor'
+        } )
+
+        boidsFolder.addBinding( this.uniforms.uAlignmentFactor, 'value', {
+            min: 0, max: 1, step: 0.001, label: 'Alignment Factor'
+        } )
+
+        boidsFolder.addBinding( this.uniforms.uSeparationFactor, 'value', {
+            min: 0, max: 1, step: 0.001, label: 'Separation Factor'
+        } )
+    }
+
+    setAIBehaviorParameters(newParams) {
+        if (!newParams) return;
+
+        console.log("Applying AI parameters to worms:", newParams);
+        this.currentAIParameters = { ...this.currentAIParameters, ...newParams }; // Merge new params
+
+        for (const key in newParams) {
+            if (this.uniforms[key]) {
+                if (key === 'color' && typeof newParams.color === 'object') {
+                    if (newParams.color.hasOwnProperty('r') && newParams.color.hasOwnProperty('g') && newParams.color.hasOwnProperty('b')) {
+                        this.uniforms.color.value.set(newParams.color.r, newParams.color.g, newParams.color.b);
+                    }
+                } else if (typeof this.uniforms[key].value === 'number' && typeof newParams[key] === 'number') {
+                    this.uniforms[key].value = newParams[key];
+                } else if (typeof this.uniforms[key].value === 'object' && typeof newParams[key] === 'object') {
+                    // For vec2, vec3 etc. - shallow copy for now. Deeper copy if needed.
+                    // this.uniforms[key].value.copy(newParams[key]); // If it's a THREE.Vector or Color object
+                }
+            } else {
+                console.warn(`AI tried to set unknown uniform: ${key}`);
+            }
+        }
+        // Emit an event so other UI elements (like the display panel) can update
+        if (this.experience) { // Ensure experience is available (it should be)
+            this.experience.trigger('aiParametersUpdated', [this.currentAIParameters]);
+        }
     }
 
     async update( deltaTime ) {

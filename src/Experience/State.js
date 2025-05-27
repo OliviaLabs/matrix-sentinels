@@ -14,7 +14,7 @@ export default class State {
     experience = Experience.getInstance()
     renderer = this.experience.renderer.instance
     sizes = Sizes.getInstance()
-    postprocessing = true;
+    postprocessing = false;
 
     uniforms = {
         resolution: uniform( new THREE.Vector2( this.sizes.width_DPR, this.sizes.height_DPR ) ),

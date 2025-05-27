@@ -275,3 +275,32 @@ main {
     z-index: 9999;
     pointer-events: none;
 }
+
+/* AI Thinking Panel Styles */
+#ai-thinking-panel {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    width: 250px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+#ai-thinking-panel h3 {
+    margin-top: 0;
+    font-size: 14px;
+    border-bottom: 1px solid #00ff00;
+    padding-bottom: 5px;
+}
+
+#ai-params-display {
+    white-space: pre-wrap; /* Allows text to wrap */
+    word-wrap: break-word; /* Breaks long words */
+}

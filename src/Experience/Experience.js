@@ -14,6 +14,7 @@ import gsap from "gsap";
 import MotionPathPlugin from "gsap/MotionPathPlugin";
 import State from './State.js'
 import PostProcess from './Utils/PostProcess.js'
+import AiDisplayPanel from './Ui/AiDisplayPanel.js';
 
 import { isMobile } from '@experience/Utils/Helpers/Global/isMobile';
 import Ui from "@experience/Ui/Ui.js";
@@ -42,9 +43,14 @@ export default class Experience extends EventEmitter {
 
         // Html Elements
         this.html = {}
-        this.html.preloader = document.getElementById( "preloader" )
+        // this.html.preloader = document.getElementById( "preloader" )
         this.html.playButton = document.getElementById( "play-button" )
         this.html.main = document.getElementsByTagName( "main" )[ 0 ]
+
+        // Immediately show main content if preloader is removed
+        if (this.html.main) {
+            this.html.main.style.display = "block";
+        }
 
         this.isMobile = isMobile.any()
 
@@ -77,6 +83,7 @@ export default class Experience extends EventEmitter {
         this.renderer = new Renderer()
         this.state = new State()
         this.sound = new Sound()
+        this.aiDisplayPanel = new AiDisplayPanel();
 
         this.mainCamera = undefined
         this.mainScene = undefined
@@ -87,14 +94,6 @@ export default class Experience extends EventEmitter {
 
         // Wait for resources
         this.resources.on( 'ready', () => {
-            setTimeout( () => {
-                window.preloader.hidePreloader()
-                this.html.main.style.display = "block"
-                // window.preloader.showPlayButton(() => {
-                //     // start media playing
-                // })
-            }, 1000)
-
             this.time.reset()
 
             this.worlds = new Worlds()
@@ -108,6 +107,14 @@ export default class Experience extends EventEmitter {
             window.dispatchEvent( new CustomEvent( "3d-app:classes-ready" ) );
 
             this.appLoaded = true
+
+            // Initial AI prompt when app is ready
+            this.requestWormBehaviorUpdate("The worms have just materialized in the web3 world. Their core directives are to survive and reproduce. Determine their initial behavioral parameters.");
+
+            // Periodically update AI behavior (e.g., every 30 seconds)
+            setInterval(() => {
+                this.requestWormBehaviorUpdate("Provide an updated set of behavioral parameters for the worms as they continue to survive and reproduce in the web3 world, reacting to their current (imagined) state.");
+            }, 30000); // 30 seconds
         } )
     }
 
@@ -177,6 +184,13 @@ export default class Experience extends EventEmitter {
             this.resize()
         } )
 
+        // Listen for AI parameter updates to show on panel
+        this.on('aiParametersUpdated', (params) => {
+            if (this.aiDisplayPanel && this.aiDisplayPanel.active) {
+                this.aiDisplayPanel.updateParameters(params);
+            }
+        });
+
         this.renderer.instance.setAnimationLoop( async () => this.update() )
     }
 
@@ -238,5 +252,45 @@ export default class Experience extends EventEmitter {
 
         if ( this.debug.active )
             this.debug.ui.destroy()
+    }
+
+    async requestWormBehaviorUpdate(prompt) {
+        if (this.aiDisplayPanel && this.aiDisplayPanel.active) {
+            this.aiDisplayPanel.showLoading(`AI thinking about: "${prompt.substring(0, 50)}..."`);
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/api/get-worm-parameters', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt: prompt }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.parameters) {
+                if (this.worlds && this.worlds.mainWorld && this.worlds.mainWorld.particlesTrails) {
+                    this.worlds.mainWorld.particlesTrails.setAIBehaviorParameters(data.parameters);
+                } else {
+                    console.error("ParticlesTrails instance not found to apply AI parameters.");
+                }
+            } else {
+                console.error("No parameters received from AI server.");
+                if (this.aiDisplayPanel && this.aiDisplayPanel.active) {
+                    this.aiDisplayPanel.showError('No parameters from AI.');
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch or apply AI worm parameters:', error);
+            if (this.aiDisplayPanel && this.aiDisplayPanel.active) {
+                this.aiDisplayPanel.showError(error.message);
+            }
+        }
     }
 }
